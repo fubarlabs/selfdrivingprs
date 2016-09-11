@@ -45,6 +45,10 @@ const int PIN_M2_PWM = 7;
 //Setup Steering Control
 const int PIN_STR = 10;
 
+//shoot through delay
+int PREV_DIR = LOW;
+const int SHOOT_DELAY = 100;
+
 void setThrottle(int ch_data) {
   int thr;
   int DIR;
@@ -62,8 +66,13 @@ void setThrottle(int ch_data) {
     thr = 0; //stop
     DIR = LOW;
   }
-
-
+  
+  //shoot through protection
+  if ( DIR != PREV_DIR) {
+    delay(SHOOT_DELAY);
+  }
+  PREV_DIR = DIR;
+  
   digitalWrite(PIN_M1_DIR, DIR);
   digitalWrite(PIN_M2_DIR, DIR);
   SoftPWMServoPWMWrite(PIN_M1_PWM, thr); //these aren't servos use pwm
