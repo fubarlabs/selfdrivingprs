@@ -47,7 +47,7 @@ const int PIN_STR = 10;
 
 //shoot through delay
 int PREV_DIR = LOW;
-const int SHOOT_DELAY = 100;
+const int SHOOT_DELAY = 250;
 
 void setThrottle(int ch_data) {
   int thr;
