@@ -1,4 +1,4 @@
-#define DEBUG_SERIAL false
+#define DEBUG_SERIAL true
 
 
 #define MAX_CMD_BUF  20
@@ -6,6 +6,16 @@
 #define CMD_DIR 1
 #define CMD_GAS 2
 #define CMD_TIME 3
+
+unsigned int last_time;
+
+void autoSteer(int pos) {
+
+}
+
+void autoThrottle(int dir, int thr) {
+
+}
 
 void setup() {
   Serial.begin(9600);
@@ -48,13 +58,6 @@ void doAutoCommands() {
   unsigned int time;
 
 
-  void autoSteer(int pos) {
-
-  }
-
-  void autoThrottle(int dir, int thr) {
-
-  }
 
   byte size = Serial.readBytes(cmdBuf, MAX_CMD_BUF);
   cmdBuf[size] = 0;
@@ -65,22 +68,45 @@ void doAutoCommands() {
     switch (cmd_cnt) {
       case CMD_STR:
         str = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, str);
+        if (str > 255 || str < 0) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, str);
+        }
         break;
       case CMD_DIR:
         dir = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, dir );
+        if (dir  < 0  || dir > 1) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, dir );
+        }
         break;
       case CMD_GAS:
         gas = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, gas);
+        if (gas > 255 || gas < 0) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, gas);
+        }
         break;
       case CMD_TIME:
         time = atoi(command);
-        Serial.printf("%d, %lu\n", cmd_cnt, time);
+        if (time < last_time) {
+          return;
+        }
+        last_time = time;
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %lu\n", cmd_cnt, time);
+        }
         break;
       default:
-        Serial.println("NOOP");
+        if (DEBUG_SERIAL) {
+          Serial.println("NOOP");
+        }
         return; //return if there are too many commands or non matching
     }
     command = strtok(0, ",");

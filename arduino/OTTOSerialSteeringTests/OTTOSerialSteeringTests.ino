@@ -1,11 +1,64 @@
-#define DEBUG_SERIAL false
+#include <SoftPWMServo.h>
 
+#define DEBUG_SERIAL true
+
+//shoot through delay
+int PREV_DIR = LOW;
+const int SHOOT_DELAY = 250;
 
 #define MAX_CMD_BUF  20
 #define CMD_STR 0
 #define CMD_DIR 1
 #define CMD_GAS 2
 #define CMD_TIME 3
+
+unsigned long last_time;
+
+
+//Setup Motor Controller
+const int PIN_M1_DIR = 2; //TODO: move off i2c
+const int PIN_M2_DIR = 3;
+const int PIN_M1_PWM = 4;
+const int PIN_M2_PWM = 7;
+const int PIN_KILL = 23;
+
+void autoSteer(int str) //0 - 255
+{
+  int pos;
+  if (str < 124 ) //steer right
+  {
+    pos = map(str, 127, 0, 1525, 1589);
+  }
+  else if (str > 130) //steer left
+  {
+    pos = map(str, 130, 255, 1550, 1400);
+  }
+  else
+  {
+    pos = 1500;
+  }
+
+
+  // SoftPWMServoServoWrite(PIN_STR, pos);
+  Serial.printf("str: ch: %d servo: %d\n ", str, pos);
+  delay(25);
+}
+
+void autoThrottle(int DIR, int thr) {
+
+  //shoot through protection
+  if ( DIR != PREV_DIR) {
+    delay(SHOOT_DELAY);
+  }
+  PREV_DIR = DIR;
+
+  digitalWrite(PIN_M1_DIR, DIR);
+  digitalWrite(PIN_M2_DIR, DIR);
+  SoftPWMServoPWMWrite(PIN_M1_PWM, thr); //these aren't servos use pwm
+  SoftPWMServoPWMWrite(PIN_M2_PWM, thr);//these aren't servos use pwm
+  Serial.printf("thr: dir: %d, pwm: %d\n ", DIR, thr);
+  delay(25);
+}
 
 void setup() {
   Serial.begin(9600);
@@ -48,13 +101,6 @@ void doAutoCommands() {
   unsigned int time;
 
 
-  void autoSteer(int pos) {
-
-  }
-
-  void autoThrottle(int dir, int thr) {
-
-  }
 
   byte size = Serial.readBytes(cmdBuf, MAX_CMD_BUF);
   cmdBuf[size] = 0;
@@ -65,22 +111,45 @@ void doAutoCommands() {
     switch (cmd_cnt) {
       case CMD_STR:
         str = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, str);
+        if (str > 255 || str < 0) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, str);
+        }
         break;
       case CMD_DIR:
         dir = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, dir );
+        if (dir  < 0  || dir > 1) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, dir );
+        }
         break;
       case CMD_GAS:
         gas = atoi(command);
-        Serial.printf("%d, %d\n", cmd_cnt, gas);
+        if (gas > 255 || gas < 0) {
+          return;
+        }
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %d\n", cmd_cnt, gas);
+        }
         break;
       case CMD_TIME:
         time = atoi(command);
-        Serial.printf("%d, %lu\n", cmd_cnt, time);
+        if (time < last_time) {
+          return;
+        }
+        last_time = time;
+        if (DEBUG_SERIAL) {
+          Serial.printf("%d, %lu\n", cmd_cnt, time);
+        }
         break;
       default:
-        Serial.println("NOOP");
+        if (DEBUG_SERIAL) {
+          Serial.println("NOOP");
+        }
         return; //return if there are too many commands or non matching
     }
     command = strtok(0, ",");
