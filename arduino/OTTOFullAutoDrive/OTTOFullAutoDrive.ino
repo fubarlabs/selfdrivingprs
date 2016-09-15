@@ -34,8 +34,8 @@ int chmax[4];
 
 
 /*
- * Automatic Set Up
- */
+   Automatic Set Up
+*/
 
 #define MAX_CMD_BUF  20
 #define CMD_STR 0
@@ -48,8 +48,8 @@ unsigned long last_time;
 
 
 /*
- * 
- * 
+
+
    RC Controller states
     out of range or off
     kill
@@ -58,7 +58,7 @@ unsigned long last_time;
 #define ACTION 0
 
 //Setup Motor Controller
-const int PIN_M1_DIR = 14; 
+const int PIN_M1_DIR = 14;
 const int PIN_M2_DIR = 3;
 const int PIN_M1_PWM = 4;
 const int PIN_M2_PWM = 7;
@@ -85,24 +85,31 @@ int initIMU() {
   byte c = ottoIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
   if (c == 0x71) // WHO_AM_I should always be 0x68
   {
-    Serial.println("MPU9250 is online...");
+    if (DEBUG_SERIAL) {
+      Serial.println("MPU9250 is online...");
+    }
     ottoIMU.MPU9250SelfTest(ottoIMU.SelfTest);
     // Calibrate gyro and accelerometers, load biases in bias registers
     ottoIMU.calibrateMPU9250(ottoIMU.gyroBias, ottoIMU.accelBias);
     ottoIMU.initMPU9250();
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
-    Serial.println("MPU9250 initialized for active data mode....");
+    if (DEBUG_SERIAL) {
+      Serial.println("MPU9250 initialized for active data mode....");
+    }
     // Read the WHO_AM_I register of the magnetometer, this is a good test of
     // communication
     byte d = ottoIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
-    Serial.print("AK8963 "); Serial.print("I AM "); Serial.print(d, HEX);
-    Serial.print(" I should be "); Serial.println(0x48, HEX);
-
+    if (DEBUG_SERIAL) {
+      Serial.print("AK8963 "); Serial.print("I AM "); Serial.print(d, HEX);
+      Serial.print(" I should be "); Serial.println(0x48, HEX);
+    }
     // Get magnetometer calibration from AK8963 ROM
     ottoIMU.initAK8963(ottoIMU.magCalibration);
     // Initialize device for active mode read of magnetometer
-    Serial.println("AK8963 initialized for active data mode....");
+    if (DEBUG_SERIAL) {
+      Serial.println("AK8963 initialized for active data mode....");
+    }
 
   }
   else
@@ -197,7 +204,9 @@ void setSteering(int ch_data) {
 
 
   SoftPWMServoServoWrite(PIN_STR, pos);
-  Serial.printf("str: ch: %d servo: %d\n ", ch_data, pos);
+  if (DEBUG_SERIAL) {
+    Serial.printf("str: ch: %d servo: %d\n ", ch_data, pos);
+  }
   delay(25);
 }
 
@@ -212,7 +221,9 @@ void doAction() {
   //check for kill switch
   if (ch[2] > 1500 ) {
     digitalWrite(PIN_KILL, HIGH);
-    Serial.println("KILL HIGH");
+    if (DEBUG_SERIAL) {
+      Serial.println("KILL HIGH");
+    }
   }
   else {
     digitalWrite(PIN_KILL, LOW);
@@ -220,35 +231,37 @@ void doAction() {
 
   //check if auto on
   if (ch[3] > 1500 ) {
-      //auto mode is on
-      //Check if command waiting
-      if (Serial.available() > 0) {
-        doAutoCommands();
-      }
-      return;
+    //auto mode is on
+    //Check if command waiting
+    if (Serial.available() > 0) {
+      doAutoCommands();
     }
-    else if (ch[0] == 0 ) //check for RCCommands
-    {
+    return;
+  }
+  else if (ch[0] == 0 ) //check for RCCommands
+  {
+    if (DEBUG_SERIAL) {
       Serial.printf("Out of Range or Powered Off\n");
-      //set brake
-      //kill the machine
     }
-    else
-    {
-      /*
-         steering 1100 - 1500 map left
-         steering between 1500 - 1600 straight
-          steering 1600 - 1900 map left
-      */
-      setSteering(ch[0]);
-      /*
-         Throttling:
-          1100 - 1500: reverse
-          1500 - 1600: no throttle
-          1600 - 1900: forward
-      */
-      setThrottle(ch[1]);
-    }
+    //set brake
+    //kill the machine
+  }
+  else
+  {
+    /*
+       steering 1100 - 1500 map left
+       steering between 1500 - 1600 straight
+        steering 1600 - 1900 map left
+    */
+    setSteering(ch[0]);
+    /*
+       Throttling:
+        1100 - 1500: reverse
+        1500 - 1600: no throttle
+        1600 - 1900: forward
+    */
+    setThrottle(ch[1]);
+  }
 }
 
 
@@ -271,7 +284,9 @@ void autoSteer(int str) //0 - 255
 
 
   // SoftPWMServoServoWrite(PIN_STR, pos);
-  Serial.printf("str: ch: %d servo: %d\n ", str, pos);
+  if (DEBUG_SERIAL) {
+    Serial.printf("str: ch: %d servo: %d\n ", str, pos);
+  }
   delay(25);
 }
 
@@ -396,6 +411,7 @@ void doAutoCommands() {
 
 
 void setup() {
+  Wire.begin();
   Serial.begin(9600);
   pinMode(PIN_M1_DIR, OUTPUT); // Motor1 DIR PIN
   pinMode(PIN_M2_DIR, OUTPUT); //Motor2 DIR PIN
@@ -405,8 +421,11 @@ void setup() {
   digitalWrite(PIN_KILL, LOW);
   digitalWrite(PIN_M1_DIR, LOW);
   digitalWrite(PIN_M2_DIR, LOW);
-  SoftPWMServoServoWrite(PIN_M1_PWM, 0);
-  SoftPWMServoServoWrite(PIN_M2_PWM, 0);
+  SoftPWMServoPWMWrite(PIN_M1_PWM, 0);
+  SoftPWMServoPWMWrite(PIN_M2_PWM, 0);
+
+  delay(5000);
+
 
   /*
      initIMU: if not reachable stop
@@ -423,7 +442,7 @@ void setup() {
 }
 
 void loop() {
-  doAction();
+  //doAction();
   printIMU();
 }
 
