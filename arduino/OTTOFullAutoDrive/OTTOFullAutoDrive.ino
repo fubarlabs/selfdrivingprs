@@ -58,7 +58,7 @@ unsigned long last_time;
 #define ACTION 0
 
 //Setup Motor Controller
-const int PIN_M1_DIR = 2; //TODO: move off i2c
+const int PIN_M1_DIR = 14; 
 const int PIN_M2_DIR = 3;
 const int PIN_M1_PWM = 4;
 const int PIN_M2_PWM = 7;
