@@ -12,6 +12,11 @@
 #define MAX_CMD_BUF  40
 
 //Setup RC Controller
+#define CH_STR 0
+#define CH_THR 1
+#define CH_KILL 2
+#define CH_AUTO 3
+
 const int channels = 4;
 
 /*
@@ -44,18 +49,6 @@ int chmax[4];
 #define CMD_TIME 3
 
 unsigned long last_time;
-
-
-
-/*
-
-
-   RC Controller states
-    out of range or off
-    kill
-    enable
-*/
-#define ACTION 0
 
 //Setup Motor Controller
 const int PIN_M1_DIR = 14;
@@ -122,6 +115,65 @@ int initIMU() {
   return true;
 }
 
+
+
+void doAction() {
+  ch[CH_STR] = pulseIn(A1, HIGH, 25000); // Read the pulse width of
+  ch[CH_THR] = pulseIn(A2, HIGH, 25000); // each channel
+  ch[CH_KILL] = pulseIn(A3, HIGH, 25000);
+  ch[CH_AUTO] = pulseIn(A4, HIGH, 25000);
+  //check for kill switch
+  if (ch[CH_KILL] > 1500 ) {
+    digitalWrite(PIN_KILL, HIGH);
+    if (DEBUG_SERIAL) {
+      Serial.println("KILL HIGH");
+    }
+  }
+  else {
+    digitalWrite(PIN_KILL, LOW);
+  }//end kill switch
+
+  //check if auto on
+  if (ch[CH_AUTO] > 1500 ) {
+    if (DEBUG_SERIAL) {
+      Serial.println("FULL AUTO");
+    }
+    //auto mode is on
+    //Check if command waiting
+    if (Serial.available() > 0) {
+      doAutoCommands();
+    }
+    return;
+  }
+  else if (ch[CH_STR] == 0 ) //check for RCCommands
+  {
+    if (DEBUG_SERIAL) {
+      Serial.printf("Out of Range or Powered Off\n");
+    }
+    //set brake
+    //kill the machine
+  }
+  else
+  {
+    /*
+       steering 1100 - 1500 map left
+       steering between 1500 - 1600 straight
+        steering 1600 - 1900 map left
+    */
+    setSteering(ch[CH_STR]);
+    /*
+       Throttling:
+        1100 - 1500: reverse
+        1500 - 1600: no throttle
+        1600 - 1900: forward
+    */
+    setThrottle(ch[CH_THR]);
+  }
+}
+
+
+
+
 void setThrottle(int ch_data) {
   int thr;
   int DIR;
@@ -153,30 +205,7 @@ void setThrottle(int ch_data) {
   Serial.printf("thr: ch: %d, dir: %d, pwm: %d\n ", ch_data, DIR, thr);
   delay(25);
 }
-/*
-   printIMU to serial port
-*/
-void printIMU()
-{
-  ottoIMU.readAccelData(ottoIMU.accelCount);  // Read the x/y/z adc values
-  ottoIMU.getAres();
-  ottoIMU.ax = (float)ottoIMU.accelCount[0] * ottoIMU.aRes; // - accelBias[0];
-  ottoIMU.ay = (float)ottoIMU.accelCount[1] * ottoIMU.aRes; // - accelBias[1];
-  ottoIMU.az = (float)ottoIMU.accelCount[2] * ottoIMU.aRes; // - accelBias[2];
-  ottoIMU.readGyroData(ottoIMU.gyroCount);  // Read the x/y/z adc values
-  ottoIMU.getGres();
-  ottoIMU.gx = (float)ottoIMU.gyroCount[0] * ottoIMU.gRes;
-  ottoIMU.gy = (float)ottoIMU.gyroCount[1] * ottoIMU.gRes;
-  ottoIMU.gz = (float)ottoIMU.gyroCount[2] * ottoIMU.gRes;
 
-  Serial.printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lu\n", ottoIMU.ax, ottoIMU.ay,  ottoIMU.az, ottoIMU.yaw, ottoIMU.pitch, ottoIMU.roll, millis() );
-  ottoIMU.count = millis();
-  ottoIMU.sumCount = 0;
-  ottoIMU.sum = 0;
-
-  delay(10);
-
-}
 
 void setSteering(int ch_data) {
   int pos;
@@ -213,59 +242,6 @@ void setSteering(int ch_data) {
 
 
 
-void doAction() {
-  ch[0] = pulseIn(A1, HIGH, 25000); // Read the pulse width of
-  ch[1] = pulseIn(A2, HIGH, 25000); // each channel
-  ch[2] = pulseIn(A3, HIGH, 25000);
-  ch[3] = pulseIn(A4, HIGH, 25000);
-  //check for kill switch
-  if (ch[2] > 1500 ) {
-    digitalWrite(PIN_KILL, HIGH);
-    if (DEBUG_SERIAL) {
-      Serial.println("KILL HIGH");
-    }
-  }
-  else {
-    digitalWrite(PIN_KILL, LOW);
-  }//end kill switch
-
-  //check if auto on
-  if (ch[3] > 1500 ) {
-    //auto mode is on
-    //Check if command waiting
-    if (Serial.available() > 0) {
-      doAutoCommands();
-    }
-    return;
-  }
-  else if (ch[0] == 0 ) //check for RCCommands
-  {
-    if (DEBUG_SERIAL) {
-      Serial.printf("Out of Range or Powered Off\n");
-    }
-    //set brake
-    //kill the machine
-  }
-  else
-  {
-    /*
-       steering 1100 - 1500 map left
-       steering between 1500 - 1600 straight
-        steering 1600 - 1900 map left
-    */
-    setSteering(ch[0]);
-    /*
-       Throttling:
-        1100 - 1500: reverse
-        1500 - 1600: no throttle
-        1600 - 1900: forward
-    */
-    setThrottle(ch[1]);
-  }
-}
-
-
-
 void autoSteer(int str) //0 - 255
 {
   int pos;
@@ -283,7 +259,7 @@ void autoSteer(int str) //0 - 255
   }
 
 
-  // SoftPWMServoServoWrite(PIN_STR, pos);
+  SoftPWMServoServoWrite(PIN_STR, pos);
   if (DEBUG_SERIAL) {
     Serial.printf("str: ch: %d servo: %d\n ", str, pos);
   }
@@ -410,6 +386,31 @@ void doAutoCommands() {
 }
 
 
+/*
+   printIMU to serial port
+*/
+void printIMU()
+{
+  ottoIMU.readAccelData(ottoIMU.accelCount);  // Read the x/y/z adc values
+  ottoIMU.getAres();
+  ottoIMU.ax = (float)ottoIMU.accelCount[0] * ottoIMU.aRes; // - accelBias[0];
+  ottoIMU.ay = (float)ottoIMU.accelCount[1] * ottoIMU.aRes; // - accelBias[1];
+  ottoIMU.az = (float)ottoIMU.accelCount[2] * ottoIMU.aRes; // - accelBias[2];
+  ottoIMU.readGyroData(ottoIMU.gyroCount);  // Read the x/y/z adc values
+  ottoIMU.getGres();
+  ottoIMU.gx = (float)ottoIMU.gyroCount[0] * ottoIMU.gRes;
+  ottoIMU.gy = (float)ottoIMU.gyroCount[1] * ottoIMU.gRes;
+  ottoIMU.gz = (float)ottoIMU.gyroCount[2] * ottoIMU.gRes;
+
+  Serial.printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%lu\n", ottoIMU.ax, ottoIMU.ay,  ottoIMU.az, ottoIMU.gx, ottoIMU.gy, ottoIMU.gz, millis() );
+  ottoIMU.count = millis();
+  ottoIMU.sumCount = 0;
+  ottoIMU.sum = 0;
+
+  delay(10);
+
+}
+
 void setup() {
   Wire.begin();
   Serial.begin(9600);
@@ -429,12 +430,12 @@ void setup() {
 
   /*
      initIMU: if not reachable stop
-  */
-  if (!initIMU()) {
+
+    if (!initIMU()) {
     Serial.print("Could not connect to MPU9250: 0x");
     while (1);
-  }
-  /*
+    }
+
      Initialize the RC Controller data
   */
   getRCInfo();
@@ -447,17 +448,9 @@ void loop() {
 }
 
 
-int getRCAction() {
-  ch[0] = pulseIn(A1, HIGH, 25000); // Read the pulse width of
-  ch[1] = pulseIn(A2, HIGH, 25000); // each channel
-  ch[2] = pulseIn(A3, HIGH, 25000);
-  ch[3] = pulseIn(A4, HIGH, 25000);
-  return ACTION;
-}
-
-
 //Function: get The RC Control infomration
 void getRCInfo() {
+  //just read the channels without labels
   ch[0] = pulseIn(A1, HIGH, 25000); // Read the pulse width of
   ch[1] = pulseIn(A2, HIGH, 25000); // each channel
   ch[2] = pulseIn(A3, HIGH, 25000);
