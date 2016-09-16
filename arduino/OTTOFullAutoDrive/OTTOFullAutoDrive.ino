@@ -11,7 +11,16 @@
 #define DEBUG_SERIAL true
 #define MAX_CMD_BUF  40
 
-//Setup RC Controller
+/*
+   Setup RC Controller
+   What are the channels:
+   0: thr: throttle
+   1: str, steering
+   2: kill: pos1: OK, pos:2 Emergency Stop
+   3: auto: pos1: Manual, pos: AUTO
+
+*/
+
 #define CH_STR 0
 #define CH_THR 1
 #define CH_KILL 2
@@ -19,27 +28,13 @@
 
 const int channels = 4;
 
-/*
-   What are the channels:
-   0: thr: throttle
-   1: str, steering
-   2: aux1: pos1: OK, pos:2 Emergency Stop
-   3: aux2:
-*/
-
-int ch1; // Here's where we'll keep our channel values
-int ch2;
-int ch3;
-int ch4;
-
 int ch[4];
 int chmin[4];
 int chmid[4];
 int chmax[4];
 
-
 /*
-   Automatic Set Up
+    Automatic Set Up
 */
 
 #define MAX_CMD_BUF  20
@@ -63,8 +58,6 @@ const int PIN_STR = 10;
 //shoot through delay
 int PREV_DIR = LOW;
 const int SHOOT_DELAY = 250;
-
-//imu constants
 
 //imu unit object
 MPU9250 ottoIMU;
@@ -240,7 +233,9 @@ void setSteering(int ch_data) {
 }
 
 
-
+/*
+   Auto Steering
+*/
 
 void autoSteer(int str) //0 - 255
 {
@@ -266,6 +261,9 @@ void autoSteer(int str) //0 - 255
   delay(25);
 }
 
+/*
+   Automatic Throttle
+*/
 void autoThrottle(int DIR, int thr) {
 
   //shoot through protection
@@ -283,9 +281,9 @@ void autoThrottle(int DIR, int thr) {
 }
 
 
-
-void doAutoCommands() {
-  /*
+/*
+   Find and do the autonmous commands
+   /*
      read entire input max length
      while more serial
      fill the comdBuf until a ','
@@ -303,7 +301,9 @@ void doAutoCommands() {
 
      255,1,255,1110000
      255,0,0,1110001
-  */
+*/
+void doAutoCommands() {
+
 
   //http://arduino.stackexchange.com/questions/1013/how-do-i-split-an-incoming-string
   int cmd_cnt = 0;
@@ -427,19 +427,16 @@ void setup() {
 
   delay(5000);
 
-
-  /*
-     initIMU: if not reachable stop
-
-    if (!initIMU()) {
-    Serial.print("Could not connect to MPU9250: 0x");
-    while (1);
+  //initIMU: if not reachable stop
+  if (!initIMU()) {
+    while (1) {
+      Serial.println("Could not connect to MPU9250: 0x");
+      delay(500);
     }
+  }
 
-     Initialize the RC Controller data
-  */
+  //Initialize the RC Controller data
   getRCInfo();
-
 }
 
 void loop() {
