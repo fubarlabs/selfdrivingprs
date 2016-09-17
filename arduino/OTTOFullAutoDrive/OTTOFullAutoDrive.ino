@@ -8,7 +8,7 @@
 #include <SoftPWMServo.h>
 #include "MPU9250.h"
 
-#define DEBUG_SERIAL true
+#define DEBUG_SERIAL false
 #define MAX_CMD_BUF  40
 
 /*
@@ -127,7 +127,7 @@ void doAction() {
   }//end kill switch
 
   //check if auto on
-  if (ch[CH_AUTO] > 1500 ) {
+  if (ch[CH_AUTO] > 1500 || AUTOMODE == true) {
     if (DEBUG_SERIAL) {
       Serial.println("FULL AUTO");
     }
@@ -195,7 +195,9 @@ void setThrottle(int ch_data) {
   digitalWrite(PIN_M2_DIR, DIR);
   SoftPWMServoPWMWrite(PIN_M1_PWM, thr); //these aren't servos use pwm
   SoftPWMServoPWMWrite(PIN_M2_PWM, thr);//these aren't servos use pwm
-  Serial.printf("thr: ch: %d, dir: %d, pwm: %d\n ", ch_data, DIR, thr);
+  if (DEBUG_SERIAL) {
+    Serial.printf("thr: ch: %d, dir: %d, pwm: %d\n ", ch_data, DIR, thr);
+  }
   delay(25);
 }
 
@@ -276,7 +278,9 @@ void autoThrottle(int DIR, int thr) {
   digitalWrite(PIN_M2_DIR, DIR);
   SoftPWMServoPWMWrite(PIN_M1_PWM, thr); //these aren't servos use pwm
   SoftPWMServoPWMWrite(PIN_M2_PWM, thr);//these aren't servos use pwm
-  Serial.printf("thr: dir: %d, pwm: %d\n ", DIR, thr);
+  if (DEBUG_SERIAL) {
+    Serial.printf("thr: dir: %d, pwm: %d\n ", DIR, thr);
+  }
   delay(25);
 }
 
@@ -334,6 +338,11 @@ void doAutoCommands() {
         break;
       case CMD_DIR:
         dir = atoi(command);
+        if (dir == 1) {
+          dir = 0;
+        } else {
+          dir = 1;
+        }
         if (dir  < 0  || dir > 1) {
           return;
         }
@@ -425,22 +434,24 @@ void setup() {
   SoftPWMServoPWMWrite(PIN_M1_PWM, 0);
   SoftPWMServoPWMWrite(PIN_M2_PWM, 0);
 
+  initIMU();
   delay(5000);
-
-  //initIMU: if not reachable stop
-  if (!initIMU()) {
-    while (1) {
-      Serial.println("Could not connect to MPU9250: 0x");
-      delay(500);
+  /*
+    //initIMU: if not reachable stop
+    if (!initIMU()) {
+      while (1) {
+        Serial.println("Could not connect to MPU9250: 0x");
+        delay(500);
+      }
     }
-  }
+  */
 
   //Initialize the RC Controller data
   getRCInfo();
 }
 
 void loop() {
-  //doAction();
+  doAction();
   printIMU();
 }
 
